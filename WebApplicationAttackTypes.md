@@ -1,4 +1,4 @@
-#  Web Application Attack Types
+# Web Application Attack Types
 
 > A reference guide covering common web application vulnerabilities and attack techniques — built to demonstrate understanding of offensive security concepts.
 
@@ -17,6 +17,7 @@
 - [Remote Code Execution (RCE)](#-remote-code-execution-rce)
 - [Sub Domain Takeover](#-sub-domain-takeover)
 - [Insecure Direct Object References (IDOR)](#-insecure-direct-object-references-idor)
+- [XML External Entity (XXE)](#-xml-external-entity-xxe)
 - [Quick Reference Table](#-quick-reference-table)
 
 ---
@@ -92,7 +93,7 @@ Step 5: Bob loses $5000
 ### What is it?
 Also known as **virtual defacement** — occurs when a site allows a malicious user to inject **raw HTML into web pages** due to improper input handling.
 
->  This is distinct from JavaScript injection (XSS) — HTML injection injects structural markup, not scripts.
+> ️ This is distinct from JavaScript injection (XSS) — HTML injection injects structural markup, not scripts.
 
 ### What an attacker can do
 - Change the **look and layout** of a web page
@@ -121,9 +122,9 @@ XSS involves a website **including unintended JavaScript code** which is then ex
 
 | Type | Persisted? | Description |
 |------|-----------|-------------|
-| **Reflected XSS** | No | Delivered and executed via a single request/response cycle |
-| **Stored XSS** | Yes | Saved on the server, executed when unsuspecting users load the page |
-| **Self XSS** | No | Tricks the user into running the malicious script themselves |
+| **Reflected XSS** |  No | Delivered and executed via a single request/response cycle |
+| **Stored XSS** |  Yes | Saved on the server, executed when unsuspecting users load the page |
+| **Self XSS** |  No | Tricks the user into running the malicious script themselves |
 
 ### Basic Example
 ```javascript
@@ -175,7 +176,7 @@ SQLi allows an attacker to **inject SQL statements** into a target application t
 | **Update** | `UPDATE` | Modify existing records |
 | **Delete** | `DELETE` | Destroy database records |
 
-> In severe cases, attackers may achieve **Remote Command Execution** on the server.
+>  In severe cases, attackers may achieve **Remote Command Execution** on the server.
 
 ### Root Cause
 Unescaped user input passed directly into database queries.
@@ -222,7 +223,7 @@ Server fetches AWS metadata and returns it to the attacker
 ### What is it?
 RCE refers to **injecting code that is interpreted and executed** by a vulnerable application.
 
-> RCE is sometimes used interchangeably with **Command Injection**.
+>  RCE is sometimes used interchangeably with **Command Injection**.
 
 ### Root Cause
 User-submitted input is used by the application **without sanitization or validation**, allowing code to be run on the target system.
@@ -274,6 +275,61 @@ GET https://site.com/account?id=1002   → Shows SOMEONE ELSE'S account
 
 ---
 
+## XML External Entity (XXE)
+
+### What is it?
+An XXE vulnerability involves **exploiting how an application parses XML input** — specifically, how it processes the inclusion of **external entities** in that input.
+
+### Background
+XML supports a feature called **external entities** — references to external resources (files, URLs) defined within the XML document itself. When an application parses XML without disabling this feature, attackers can abuse it to make the server load unintended resources.
+
+### How it works
+```xml
+<!-- Normal XML -->
+<user>
+  <name>John</name>
+</user>
+
+<!-- XXE Payload — attacker defines an external entity -->
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE foo [
+  <!ENTITY xxe SYSTEM "file:///etc/passwd">
+]>
+<user>
+  <name>&xxe;</name>   <!-- Server reads /etc/passwd and returns its contents -->
+</user>
+```
+
+### Attack Flow
+```
+Attacker crafts malicious XML with external entity
+              ↓
+Sends it to a vulnerable application endpoint
+              ↓
+XML parser processes the external entity reference
+              ↓
+Server fetches the file/URL defined in the entity
+              ↓
+Contents returned in the response to the attacker 
+```
+
+### Potential Impact
+- **File disclosure** — read sensitive server files (e.g., `/etc/passwd`, config files)
+- **SSRF** — force the server to make requests to internal services
+- **Denial of Service** — via recursive entity expansion (Billion Laughs attack)
+- **Remote Code Execution** — in some configurations
+
+### Root Cause
+- XML parser configured to **allow external entity processing**
+- No input validation or sanitization on XML input
+
+### Prevention
+- Disable external entity processing in the XML parser
+- Use less complex data formats like **JSON** where possible
+- Validate and sanitize all XML input
+
+---
+
 ## Quick Reference Table
 
 | Attack | Category | Impact | Root Cause |
@@ -289,6 +345,7 @@ GET https://site.com/account?id=1002   → Shows SOMEONE ELSE'S account
 | **RCE** | Injection | Full server compromise | No input validation |
 | **Subdomain Takeover** | DNS | Phishing, cookie theft | Dangling DNS records |
 | **IDOR** | Access Control | Unauthorized data access | Missing authorization checks |
+| **XXE** | Injection | File disclosure, SSRF, RCE | Unsafe XML parser configuration |
 
 ---
 
